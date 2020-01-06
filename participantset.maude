@@ -1,0 +1,10 @@
+load participant.maude
+fmod PARTICIPANTSET is
+
+    including PARTICIPANT .
+    sort ParticipantSet .
+    subsort Participant < ParticipantSet .
+    op emptyPs : -> ParticipantSet .
+    op _,_ : ParticipantSet ParticipantSet -> ParticipantSet [assoc comm id: emptyPs] .
+
+endfm

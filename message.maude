@@ -1,0 +1,20 @@
+load content.maude
+fmod MESSAGE is
+    protecting CONTENT .
+    sort Message .
+    op message : Participant Participant Content -> Message .
+    op messageEmpty : -> Message .
+
+    op sender : Message -> Participant .
+    op receiver : Message -> Participant .
+    op content : Message -> Content .
+  
+    --- vars A B : Participant .
+    --- var C : Content .
+
+
+    --- eq sender(message(A, B, C)) = A .
+    --- eq receiver(message(A, B, C)) = B .
+    --- eq content(message(A, B, C)) = C .
+
+endfm

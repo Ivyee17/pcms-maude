@@ -1,0 +1,357 @@
+load participant.maude
+fmod GOOD is
+ including NAT .
+ sort Good  OI Price .
+---  subsort OI Price < Nat .
+ op good : Nat Nat -> Good . --- OI first, Price second
+ vars m n : Nat .
+ op getPrice : Good -> Nat .
+ op getOI : Good -> Nat .
+ eq getPrice(good(m,n)) = n .
+ eq getOI(good(m,n)) = m .
+endfm
+
+
+
+fmod TST is 
+ including NAT .
+ sort TST .
+---  subsort TST < Nat . --- later to define timestamp
+ op tst : Nat -> TST .
+ op gettstnum : TST -> Nat .
+ var n : Nat .
+ eq gettstnum(n) = n .
+endfm
+
+fmod TC is
+ sort TC .
+ ops Credit Debit : -> TC .
+endfm
+
+
+fmod KS is 
+ including PARTICIPANT .
+ sort KS .
+ op ks : Participant Participant Nat -> KS . --- how much bit to remove as a hash function
+ op getSender : KS -> Participant .
+ op getRecv : KS -> Participant .
+ op getHashValue : KS -> Nat .
+  op getPredHashValue : KS -> Nat .
+ var p1 p2 : Participant .
+ var a : Nat .
+ eq getRecv(ks(p1,p2,a)) = p2 .  
+ eq getSender(ks(p1,p2,a)) = p1 .
+ eq getHashValue(ks(p1,p2,a)) = a .
+ eq getPredHashValue(ks(p1,p2,s a)) = a .
+ eq getPredHashValue(ks(p1,p2,0)) = 0 .
+endfm
+
+fmod HSECRET is
+ including NAT .
+ including KS .
+ sort HSecret .
+ op h : Nat -> HSecret .
+ op h : KS -> HSecret .
+endfm
+
+fmod VSRECORD is 
+ including GOOD .
+ including MERCHANT .
+ including HSECRET .
+ including TST .
+ including TC .
+ sort VSRecord  .
+
+ op vsrecord : Nat HSecret TC TST Nat -> VSRecord .  --- nat is price
+ var g : Nat .
+ var h : HSecret .
+ var t : TC .
+ var tst : TST .
+ var m : Nat .
+ op getPrice : VSRecord -> Nat .
+ eq getPrice(vsrecord(g,h,t,tst,m)) = g .
+ op getTC : VSRecord -> TC .
+ eq getTC(vsrecord(g,h,t,tst,m)) = t .
+ op getHOI : VSRecord -> HSecret .
+ eq getHOI(vsrecord(g,h,t,tst,m)) = h .
+ op getTST : VSRecord -> TST .
+ eq getTST(vsrecord(g,h,t,tst,m)) = tst . 
+ op getMerchantId : VSRecord -> Nat .
+ eq getMerchantId(vsrecord(g,h,t,tst,m)) = m .
+ var gg : Good .
+ op generate-vsrecord : Good TC TST Nat -> VSRecord .  --- nat is merchant-id
+ eq generate-vsrecord(gg,t,tst,m) = vsrecord(getPrice(gg),h(getOI(gg)),t,tst,m) .
+endfm
+
+
+
+red getTC( vsrecord(getPrice(good(10000,5)),h(getOI(good(10000,5))),Credit,tst(20191016),0) ).
+
+
+fmod PRECORD is 
+ including GOOD .
+ including MERCHANT .
+ including CLIENT .
+ including ISSUER .
+ including TST .
+ including HSECRET .
+ including KS .
+ sort PRecord .
+---  subsort TST < Nat . --- later to define timestamp
+ op precord : Nat Nat Nat Nat TST Nat HSecret -> PRecord .  
+ --- nat is OI, price, Nickname-client, id-issuer, timestamp, z, h(ks-c-i-z), vsrequest
+
+ vars a b c d f : Nat .
+ var e : TST .
+ var hs : HSecret .
+ op getOI : PRecord -> Nat .
+ eq getOI(precord(a,b,c,d,e,f,hs)) = a .
+ op getPrice : PRecord -> Nat .
+ eq getPrice(precord(a,b,c,d,e,f,hs)) = b .
+ op getNID : PRecord -> Nat .
+ eq getNID(precord(a,b,c,d,e,f,hs)) = c .
+ op getID : PRecord -> Nat .
+ eq getID(precord(a,b,c,d,e,f,hs)) = d .
+ op getTST : PRecord -> TST .
+ eq getTST(precord(a,b,c,d,e,f,hs)) = e .
+ op getZ : PRecord -> Nat .
+ eq getZ(precord(a,b,c,d,e,f,hs)) = f .
+ op getHKS : PRecord -> HSecret .
+ eq getHKS(precord(a,b,c,d,e,f,hs)) = hs .
+endfm
+
+fmod MAC is
+ including VSRECORD .
+ including KS .
+ including PRECORD .
+ sort Mac Data .
+ subsort Price OI Nat TC VSRecord PRecord < Data .
+---  op __ : Data Data -> Data  [assoc comm] .
+ op mac : Data KS -> Mac .
+ op getData : Mac -> Data .
+ op getKs : Mac -> KS .
+ var a : Data .
+ var ks : KS .
+ eq getData(mac(a,ks)) = a .  --- 类型判断？转换到VSrecord类型
+ eq getKs(mac(a,ks)) = ks .
+endfm
+
+fmod VSREQUEST is
+ including MAC .
+ sort VSRequest .
+ op vsrequest : Mac TC TST -> VSRequest .
+ op generate : Mac -> VSRequest .
+ var m : Mac .
+ eq generate(m) = vsrequest(m, getTC(getData(m)),getTST(getData(m))) .
+ op getMacKs : VSRequest -> Nat .
+ var a : Mac .
+ var b : TC .
+ var c : TST .
+ eq getMacKs(vsrequest(a,b,c)) = getHashValue(getKs(a)) .
+ var r : VSRecord .
+ var k : KS .
+endfm
+
+fmod PREQUEST is
+ including PRECORD .
+ including VSREQUEST .
+ including MAC .
+ sort PRequest .
+  op prequest : Nat Nat Nat Nat TST Nat HSecret VSRequest KS Mac -> PRequest .
+  op generate-prequest : Mac VSRequest -> PRequest . --- Here, Mac is PRecord-data
+   vars a b c d f : Nat .
+   var e : TST .
+  var hs : HSecret .
+  var vsr : VSRequest .
+  var kss : KS .
+  var w : Nat .
+  var m : Mac .
+  op getVS : PRequest -> VSRequest .
+ eq getVS(prequest(a, b, c, d, e, f, hs, vsr, kss, m)) = vsr .
+ eq generate-prequest(mac(precord(a,b,c,d,e,f,hs),kss), vsr) = 
+ prequest(a,b,c,d,e,f,hs, vsr, ks(getSender(kss),getRecv(kss),getPredHashValue(kss)), mac(precord(a,b,c,d,e,f,hs),kss)) .
+ ---GET OPERATION FOR M
+  op getPrice : PRequest -> Nat .
+ op getOI : PRequest -> Nat .
+ op getNID : PRequest -> Nat .
+  eq getPrice(prequest(a, b, c, d, e, f, hs, vsr, kss, m)) = b .
+  eq getOI(prequest(a, b, c, d, e, f, hs, vsr, kss, m)) = a .
+  eq getNID(prequest(a, b, c, d, e, f, hs, vsr, kss, m)) = c .
+  op getptst : PRequest -> TST .
+  eq getptst(prequest(a, b, c, d, e, f, hs, vsr, kss, m)) = e .
+endfm
+
+fmod VCREQUEST is
+ including VSREQUEST .
+ including HSECRET .
+ including TST .
+ including NAT .
+ sort VCRequest .
+ op vcrequest : VSRequest TST HSecret Nat Nat Nat Nat -> VCRequest .
+var a : VSRequest .
+ var b : TST .
+ var c : HSecret .
+ vars d e f g : Nat .
+ op getVSRequest : VCRequest -> VSRequest .
+ eq getVSRequest(vcrequest(a,b,c,d,e,f,g)) = a .
+ op getTST : VCRequest -> TST .
+ eq getTST(vcrequest(a,b,c,d,e,f,g)) = b .
+ op getHOI : VCRequest -> HSecret .
+ eq getHOI(vcrequest(a,b,c,d,e,f,g)) = c .
+ op getTID : VCRequest -> Nat .
+ eq getTID(vcrequest(a,b,c,d,e,f,g)) = d .
+ op getPrice : VCRequest -> Nat .
+ eq getPrice(vcrequest(a,b,c,d,e,f,g)) = e .
+ op getNIDc : VCRequest -> Nat .
+ eq getNIDc(vcrequest(a,b,c,d,e,f,g)) = f .
+ op getIDi : VCRequest -> Nat .
+ eq getIDi(vcrequest(a,b,c,d,e,f,g)) = g .
+endfm
+
+fmod VCRECORD is
+ including VCREQUEST .
+ sort VCRecord .
+ op vcrecord : VCRequest Nat Nat HSecret -> VCRecord .
+ var a : VCRequest .
+ var b c : Nat .
+ var d : HSecret .
+ op getVCRequest : VCRecord -> VCRequest .
+ eq getVCRequest(vcrecord(a,b,c,d)) = a .
+ op getMerchantId : VCRecord -> Nat .
+ eq getMerchantId(vcrecord(a,b,c,d)) = b .
+ op getZ : VCRecord -> Nat .
+ eq getZ(vcrecord(a,b,c,d)) = c .
+ op getHSecret : VCRecord -> HSecret .
+ eq getHSecret(vcrecord(a,b,c,d)) = d . 
+endfm
+
+fmod VCMESSAGE is
+ including VCRECORD .
+ including MAC .
+ sort VCMessage .
+ subsort VCRecord < Data .
+ op vcmessage : VCRequest Nat Nat HSecret KS Nat Mac -> VCMessage .
+ op generate-vcmessage : Mac -> VCMessage .
+ var a : VCRecord .
+ var b c : Participant .
+ var k : Nat .
+ eq generate-vcmessage(mac(a,ks(b,c,k))) = vcmessage(getVCRequest(a),getMerchantId(a),getZ(a),getHSecret(a),ks(b,c,getPredHashValue(ks(b,c,k))),getPredHashValue(ks(b,c,k)),mac(a,ks(b,c,k))) .
+ var aa : VCRequest .
+ vars bb cc f : Nat .
+ var d : HSecret .
+ var e : KS .
+ var g : Mac .
+ op getVCRequest : VCMessage -> VCRequest .
+ op getVSRequest : VCMessage -> VSRequest .
+ eq getVCRequest(vcmessage(aa,bb,cc,d,e,f,g)) = aa .
+ eq getVSRequest(vcmessage(aa,bb,cc,d,e,f,g)) = getVSRequest(aa) .
+ op getMerchantID : VCMessage -> Nat . 
+ eq getMerchantID(vcmessage(aa,bb,cc,d,e,f,g)) = bb .
+ op getNIDc : VCMessage -> Nat .
+ eq getNIDc(vcmessage(aa,bb,cc,d,e,f,g)) = getNIDc(aa) .
+ op getTID : VCMessage -> Nat .
+ eq getTID(vcmessage(aa,bb,cc,d,e,f,g)) = getTID(aa) .
+ op getHOI : VCMessage -> HSecret .
+ eq getHOI(vcmessage(aa,bb,cc,d,e,f,g)) = getHOI(aa) .
+ op getZ : VCMessage -> Nat .
+ eq getZ(vcmessage(aa,bb,cc,d,e,f,g)) = cc .
+ op getPrice : VCMessage -> Nat .
+ eq getPrice(vcmessage(aa,bb,cc,d,e,f,g)) = getPrice(aa) .
+ op getK :  VCMessage -> Nat .
+ eq getPrice(vcmessage(aa,bb,cc,d,e,f,g)) = f .
+ op getHKS : VCMessage -> HSecret .
+ eq getHKS(vcmessage(aa,bb,cc,d,e,f,g)) = d .
+endfm
+
+fmod STT is
+ sort Stt .
+ ops Approved Rejected : -> Stt .
+endfm 
+
+fmod VSRESPONSE is
+ including STT .
+ including HSECRET .
+ including KS .
+ sort VSResponse .
+ op vsresponse : Stt HSecret HSecret KS -> VSResponse .
+endfm
+
+fmod EX-HSECRET is
+ including HSECRET .
+ including STT .
+ op h : Stt HSecret HSecret -> HSecret . --- extended for hsecret mod.
+endfm
+
+fmod VSMESSAGE is
+ including STT .
+ including VSRESPONSE .
+ including EX-HSECRET .
+ sort VSMessage .
+ op vsmessage : VSResponse Stt HSecret -> VSMessage .
+endfm
+
+fmod VCRESPONSE is
+ including STT .
+ including KS .
+ including EX-HSECRET .
+ sort VCResponse .
+ op vcresponse : Stt HSecret KS -> VCResponse .
+endfm
+
+fmod CONTENT is
+    including VSREQUEST .
+    including MERCHANT .
+    including CLIENT .
+    including PREQUEST .
+    including VCMESSAGE .
+    including PAYMENT-GATEWAY  .
+    including ISSUER .
+    including VSMESSAGE .
+    including VCRESPONSE .
+
+    sort Content .
+    subsort KS < Content .
+    subsort PRequest < Content .
+    subsort VCMessage < Content .
+    subsort VCResponse < Content .
+    
+    --- op nid : -> Content .
+    --- op i : -> Content .
+    --- op tidreq : -> Content .
+
+    sort TIDReq .
+    subsort TIDReq < Content .
+    op tidreq : -> TIDReq [ctor] .
+
+    sort INDEX .
+    subsort INDEX < Content .
+    op index : Nat -> INDEX .
+    op getIndex : INDEX -> Nat .
+    var i : Nat .
+    eq getIndex(index(i)) = i .
+
+    sort NICKNAME .
+    subsort NICKNAME < Content .
+    op nickname : Nat -> NICKNAME .
+    op getNickname : NICKNAME -> Nat .
+    eq getNickname(nickname(i)) = i .
+
+    sort TID .
+    subsort TID < Content .
+    op tid : Nat -> TID .
+    op getTID : TID -> Nat .
+    eq getTID(tid(i)) = i .
+
+    sort ID .
+    subsort ID < Content .
+    op id : Nat -> ID .
+
+    sort Z .
+    subsort Z < Content .
+    op z : Nat -> Z .
+
+
+    op __ : Content Content -> Content [assoc comm] .
+
+endfm
+

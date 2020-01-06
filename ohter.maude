@@ -1,0 +1,127 @@
+rl [step1A-1B] : (C, PG, M, I, A) nicknameindex(nni) index(i) message(C, PG, (nickname(getNickname(C, nni)) index(i))) =>
+    (C, PG, M, I, A) nicknameindex(nni) index(i) message(PG, M, (nickname(getNickname(C, nni)) index(i))) .
+
+
+
+    --- rl [step1B-1C] : (C, PG, M, I, A) nicknameindex(nni) index(i) message(PG, M, (nickname(getNickname(C, nni)) index(i))) => 
+    --- (C, PG, M, I, A) nicknameindex(nni) index(i) message(M, PG, (tid(getTID(M)), id(getId(M)), ks(C, M, i))) .
+
+    --- rl [step1C-1D] :  (C, PG, M, I, A) message(M, PG, (tid(getTID(M)), id(getId(M)), ks(C, M, i))) => 
+    --- (C, PG, M, I, A) message(PG, C, (tid(getTID(M)), id(getId(M)), ks(C, M, i))) .
+
+
+    --- var v_z : Nat .
+    --- var m : Nat .
+    --- var n : Nat .
+    --- rl [step1D-step2] : (C, PG, M, I, A) message(PG, C, (tid(getTID(M)), id(getId(M)), ks(C, M, i)))
+    --- => 
+    --- (C, PG, M, I, A) 
+    --- message(C, PG, generate-prequest( mac(precord(m, n, getNickname(C, nni), getId(I), tst(0), v_z, h(ks(C, I, v_z))), ks(C, M, i + 1)), 
+    --- generate(mac(generate-vsrecord(good(m, n), Credit, tst(0), getId(M)), ks(C, I, zzzzz) ))) .
+
+
+    --- var v_prequest : PRequest . 
+    --- rl [step2-step3] : (C, PG, M, I, A) message(C, PG, v_prequest)  => (C, PG, M, I, A) message(PG, M, v_prequest) .
+
+
+
+
+    --- rl [step3-step4] : (C, PG, M, I, A) message(PG, M, v_prequest) => (C, PG, M, I, A) message(M, PG, 
+    --- generate-vcmessage(
+    ---     mac(
+    ---         vcrecord(vcrequest(getVS(v_prequest), getId(M), v_z, h(ks(C, I, v_z))), ks(M, PG, k))
+    ---     )
+    --- ) .
+
+
+    --- sort Message5 .
+    --- subsort Message5 < Content .
+    --- op message5: Nat Nat -> Message5 .
+    --- op message5: Nat Nat VSRequest TID HSecret Nat Nat HSecret -> Message5 .
+
+    --- rl [step4-step5AB] : (C, PG, M, I, A) good(m, n) message(M, PG, 
+    --- generate-vcmessage(
+    ---     mac(
+    ---         vcrecord(vcrequest(getVS(v_prequest), getId(M), v_z, h(KS(C, I, v_z))), ks(M, PG, k))
+    ---     )
+    --- ) => (C, PG, M, I, A) message(PG, I, message5() ) .
+
+    --- ) message(PG, A, 
+    ---     Message5(n, getId(M))
+    --- ) .
+
+    --- rl [step5AB-5C] : .... => message(I, PG
+        
+    --- ) message(A, PG
+
+    --- )
+
+
+
+--- search init =>* (client(0, 1 2 3), payment, merchant(0, 0), issuer(0), acquirer) 
+--- nicknameindex(0) index(0) message(client(0, 1 2 3), payment, (nickname(1) index(0))) .
+
+--- search init =>* (client(0, (1 2 3)), payment, merchant(0, 0), issuer(0), acquirer) 
+--- nicknameindex(0) index(0) good(0, 0) z(0) k(1)
+--- message(payment, merchant(0, 0), (nickname(1) index(0))) .
+
+search init =>* (client(0, (1 2 3)), payment, merchant(0, 0), issuer(0), acquirer) 
+good(0, 0) z(0) k(1)
+message(payment, client(0, (1 2 3)), (tid(0), id(0), ks(client(0, (1 2 3)), merchant(0, 0),0))) .
+
+search init =>* (client(0, (1 2 3)), payment, merchant(0, 0), issuer(0), acquirer) 
+nicknameindex(0) index(0) good(0, 0) z(0) k(1)
+message(client(0, (1 2 3)), payment, 
+    prequest(0, 0, 1, 0, tst(0), 0, h(ks(client(0, (1 2 3)), issuer(0))), 
+    vsr, ks(client(0, (1 2 3)), merchant(0, 0), 0), 
+    mac(precord(0, 0, 1, 0, tst(0), 0, h(ks(client(0, (1 2 3))), ks(client(0, (1 2 3)), merchant(0, 0), 1)))
+) .
+
+var v_z : Nat .
+    var m : Nat .
+    var n : Nat .
+
+    rl [step1D-step2] : (C, PG, M, I, A) message(PG, C, (v_tid, v_id, v_ks)) good(m, n) nicknameindex(nni) z(v_z), index(i)
+    => (C, PG, M, I, A) 
+    message(C, PG, generate-prequest( mac(precord(m, n, getNickname(C, nni), getId(I), tst(0), v_z, h(ks(C, I, v_z))), ks(C, M, i + 1)), 
+    generate(mac(generate-vsrecord(good(m, n), Credit, tst(0), getId(M)), ks(C, I, v_z)) ) ) .
+
+
+rl [step1A]: (C, PG, M, I, A) nicknameindex(nni) index(i) => 
+    (C, PG, M, I, A) nicknameindex(nni) index(i) message(C, PG, (nickname(getNickname(C, nni)) index(i))) .
+
+
+    var v_index : INDEX .
+    var v_nickname : NICKNAME .
+
+    rl [step1A-1B]: (C, PG, M, I, A) nicknameindex(nni) index(i) message(C, PG, (v_nickname v_index)) =>
+    (C, PG, M, I, A) nicknameindex(nni) index(i) message(PG, M, (v_nickname v_index)) .
+
+
+    rl [step1B-1C] : (C, PG, M, I, A) nicknameindex(nni) index(i) message(C, PG, (v_nickname v_index)) => 
+    (C, PG, M, I, A) nicknameindex(nni) index(i) message(M, PG, (tid(getTID(M)), id(getId(M)), ks(C, M, i))) .
+
+
+    var v_tid : TID .
+    var v_id : ID .
+    var v_ks : KS .
+
+    rl [step1C-1D] : (C, PG, M, I, A) message(M, PG, (v_tid, v_id, v_ks)) => 
+    (C, PG, M, I, A) message(PG, C, (v_tid, v_id, v_ks)) .
+
+
+
+rl [step3-step4] : (C, PG, M, I, A) message(PG, M, v_prequest) k(v_k) => (C, PG, M, I, A) message(M, PG, 
+    generate-vcmessage(
+        mac(
+            vcrecord(
+                vcrequest(getVS(v_prequest), tst(0), h(OI), TID, Price, NIDc, getId(I)), 
+                getId(M), 
+                getMacKs(getVS(v_prequest)),
+                h(
+                    ks(C, I, getMacKs(getVS(v_prequest)))
+                )
+            ), 
+            ks(M, PG, v_k)
+        )
+    )) .

@@ -1,0 +1,60 @@
+fmod ISSUER is
+ including NAT .
+ sort Issuer .
+ op issuer :  Nat -> Issuer [ctor] .
+ op getId : Issuer -> Nat .
+ var m : Nat .
+ eq getId(issuer(m)) = m .
+endfm
+
+fmod ACQUIRER is
+ sort Acquirer .
+  op acquirer :  -> Acquirer [ctor] .
+endfm
+
+fmod PAYMENT-GATEWAY is
+ sort PaymentGateway .
+ op payment : -> PaymentGateway [ctor] .
+endfm
+
+fmod CLIENT is
+ sort Client .
+ including NAT .
+ including NAT-LIST .
+ op client : Nat NatList -> Client [ctor] . --- first: name second: nicknames
+ op getId : Client -> Nat .
+ op getNickname : Client Nat -> Nat .
+ 
+ var n p E : Nat .
+ var nl L : NatList .
+ eq getId(client(n,nl)) = n .
+ ceq getNickname(client(n,nl), p) = 0 if p > size(nl) .
+ ceq getNickname(client(n,(E L)),s p) = getNickname(client(n,L),p)  if  p < size(L) + 1 .
+ ceq getNickname(client(n,(E L)),p) = E  if p == 0 .
+---  getNickname(client(5, 1 2 3), 1) . res : 2
+---  getNickname(client(5, 1 2 3), 3) . res : getNickname(client(5, nil), 0) (which makes an error)
+endfm
+
+fmod MERCHANT is
+ including NAT .
+ sort Merchant .
+ op merchant : Nat Nat -> Merchant [ctor] .
+ op getId : Merchant -> Nat .
+ op getTID : Merchant -> Nat .
+ var n : Nat .
+ var m : Nat .
+ eq getId(merchant(m, n)) = m .
+ eq getTID(merchant(m, n)) = n .
+---   op getSubst : UnificationPair -> Substitution .
+---   eq getSubst({S1:Substitution, N:Nat}) = S1:Substitution .
+endfm
+
+fmod PARTICIPANT is
+ including MERCHANT .
+ including ISSUER . 
+ including ACQUIRER .
+ including PAYMENT-GATEWAY .
+ including CLIENT .
+ sort Participant .
+ subsort Merchant Issuer PaymentGateway Client Acquirer < Participant .
+endfm

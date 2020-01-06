@@ -1,0 +1,75 @@
+fmod TEST is
+ including VSREQUEST .
+ including MERCHANT .
+ including CLIENT .
+ including PREQUEST .
+ including VCMESSAGE .
+ including PAYMENT-GATEWAY  .
+ including ISSUER .
+ including VSMESSAGE .
+ including VCRESPONSE .
+
+--- Step 1-2-3
+ op a-good : -> Good .
+ op a-merchant : -> Merchant .
+ op a-vsrecord : -> VSRecord .
+ op a-mac : -> Mac .
+ op a-vsrequest : -> VSRequest .
+ op a-client : -> Client .
+ op a-precord : -> PRecord .
+ op a-mac-p : -> Mac .
+ op a-prequest : -> PRequest .
+
+ eq a-good = good(100000,5) .
+ eq a-merchant = merchant(0) .
+---  eq a-vsrecord = record(getPrice(a-good),h(getOI(a-good)),Credit,tst(20191016),0) .
+ eq a-vsrecord = generate-vsrecord(a-good,Credit,tst(20191016),0) . --- the same
+ eq a-mac = mac(a-vsrecord, ks(a-client,issuer,0)) .
+---  eq a-vsrequest = vsrequest(a-mac, getTC(getData(a-mac)),getTST(getData(a-mac))) .
+ eq a-vsrequest = generate(a-mac) .
+ eq a-client = client(0, 10 20 30) .
+ eq a-precord = precord(getOI(a-good), getPrice(a-good), getNickname(a-client, 2), 0, getTST(a-vsrecord),
+                getHashValue(getKs(a-mac)),  h(ks(a-client, issuer, getHashValue(getKs(a-mac))))) .
+ --- only one issuer, so 0 as ID_I.
+ eq a-mac-p = mac(a-precord, ks(a-client,a-merchant,6)) .
+ --- i=6 is choose randomly (0 is not allowed!)
+ eq a-prequest = generate-prequest(a-mac-p,a-vsrequest) .
+
+
+--- Step 4
+ op a-vcrequest : -> VCRequest .
+ eq a-vcrequest = vcrequest(a-vsrequest, tst(20191017),h(getOI(a-good)),100100100001, 5, 20, 0) .
+ --- again, tid is assumpted as 100100100001
+ op a-vcrecord : -> VCRecord .
+ eq a-vcrecord = vcrecord(a-vcrequest,0,13,h(ks(a-client,issuer,13))) .
+ ---  z=13 randomly (as bit prefix)
+ op a-vcmessage : -> VCMessage .
+ eq a-vcmessage = generate-vcmessage(mac(a-vcrecord,ks(a-merchant,payment,10))) .
+ --- k+1=10 (k=9) randomly
+
+
+--- Step 5
+ op a-vsresponse : -> VSResponse .
+ eq a-vsresponse = vsresponse(Approved, h(100000), h(ks(a-merchant,payment,10)),ks(a-client,issuer,13)) .
+ op a-vsmessage : -> VSMessage .
+ eq a-vsmessage = vsmessage(a-vsresponse, Approved, h(Approved,h(100000),h(ks(a-client,issuer,13)))) .
+
+--- Step 6
+ op a-vcresponse : -> VCResponse .
+ eq a-vcresponse = vcresponse(Approved, h(Approved,h(100000),h(ks(a-client,issuer,13))), ks(a-merchant,payment,10)) .
+
+--- About PResponse
+ sort PResponse .
+ op presponse : VSResponse KS -> PResponse . 
+ op a-presponse : -> PResponse .
+ eq a-presponse = presponse(a-vsresponse, ks(a-client,payment,10)) .
+endfm
+red a-mac .
+red a-vsrequest .
+red a-prequest .
+red a-vcmessage .
+red getMerchantId(a-vcrecord) .
+red a-vsresponse .
+red a-vsmessage .
+red a-vcresponse .
+red a-presponse .

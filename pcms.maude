@@ -1,0 +1,246 @@
+load message.maude
+load participantset.maude
+mod PCMS is
+
+    including PARTICIPANT .
+    including PARTICIPANTSET .
+    including MESSAGE .
+    including CONTENT .
+
+    sort State NICKNAMEINDEX .
+    subsort Message Content ParticipantSet INDEX Good NICKNAMEINDEX < State .
+
+    op __ : State State -> State [assoc comm] .
+
+    var S : State .
+    eq S S = S .
+    
+    op init1 : -> State .
+    op init2 : -> State .
+    op init3 : -> State .
+    sort K .
+    op k : Nat -> K .
+    subsort K < State .
+    
+    subsort INDEX < State .
+    op nicknameindex : Nat -> NICKNAMEINDEX .
+    sort INITOI .
+    subsort INITOI < State .
+    op initoi : Nat -> INITOI .
+    op getinitoi : INITOI -> Nat .
+    var abc : Nat .
+    eq getinitoi(initoi(abc)) = abc .
+    sort Fail .
+    subsort Fail < State .
+    op fail : ->  Fail .
+
+
+
+    eq init1 = (client(1, (12 34 56)) , payment , merchant(1, 1) , issuer(1) , acquirer) nicknameindex(0) index(0) good(1, 20) z(0) k(1) tidreq initoi(1) .
+    eq init2 = tid(1) k(1) initoi(1) (acquirer,payment,issuer(1),merchant(1, 1),client(
+    1, 12 34 56)) message(client(1, 12 34 56), payment, prequest(3, 30, 12, 1,
+    tst(0), 0, h(ks(client(1, 12 34 56), issuer(1), 0)), vsrequest(mac(
+    vsrecord(20, h(1), Credit, tst(0), 1), ks(client(1, 12 34 56), issuer(1),
+    0)), Credit, tst(0)), ks(client(1, 12 34 56), merchant(1, 1), 0), mac(
+    precord(1, 20, 12, 1, tst(0), 0, h(ks(client(1, 12 34 56), issuer(1), 0))),
+    ks(client(1, 12 34 56), merchant(1, 1), 0)))) .
+    eq init3 = tid(1) k(1) (acquirer,payment,issuer(1),merchant(1, 1),client(
+    1, 12 34 56)) message(payment, merchant(1, 1), prequest(1, 20, 12, 1, tst(
+    6), 0, h(ks(client(1, 12 34 56), issuer(1), 0)), vsrequest(mac(vsrecord(20,
+    h(1), Credit, tst(6), 1), ks(client(1, 12 34 56), issuer(1), 0)), Credit,
+    tst(0)), ks(client(1, 12 34 56), merchant(1, 1), 0), mac(precord(1, 20, 12,
+    1, tst(6), 0, h(ks(client(1, 12 34 56), issuer(1), 0))), ks(client(1, 12 34
+    56), merchant(1, 1), 0)))) .
+
+    var C : Client .
+    var PG : PaymentGateway .
+    var M : Merchant .
+    var I : Issuer .
+    var A : Acquirer .
+    var nni : Nat .
+    var i : Nat .
+    var tidReq : TIDReq .
+    var v_index : INDEX .
+    var v_nickname : NICKNAME .
+
+    rl [step1A]: (C, PG, M, I, A) nicknameindex(nni) v_index tidReq => 
+    (C, PG, M, I, A) message(C, PG, (nickname(getNickname(C, nni)) v_index tidReq)) .
+
+    rl [step1A-1B]: (C, PG, M, I, A) message(C, PG, (v_nickname v_index tidReq)) =>
+    (C, PG, M, I, A) message(PG, M, (v_nickname v_index tidReq)) .
+
+
+    rl [step1B-1C] : (C, PG, M, I, A) message(PG, M, (v_nickname v_index tidReq)) => 
+    (C, PG, M, I, A) v_nickname message(M, PG, (tid(getTID(M)), id(getId(M)), ks(C, M, getIndex(v_index)))) .
+
+
+    subsort TID < State .
+    var v_tid : TID .
+    var v_id : ID .
+    var v_ks : KS .
+
+    rl [step1C-1D] : (C, PG, M, I, A) message(M, PG, (v_tid, v_id, v_ks)) => 
+    (C, PG, M, I, A) message(PG, C, (v_tid, v_id, v_ks)) .
+
+    var v_z : Nat .
+    var m : Nat .
+    var n : Nat .
+
+
+    rl [step1D-step2] : (C, PG, M, I, A) message(PG, C, (v_tid, v_id, v_ks)) good(m, n) z(v_z) v_nickname
+    => (C, PG, M, I, A) v_tid
+    message(C, PG, generate-prequest(
+        mac(
+            precord(m, n, getNickname(v_nickname), getId(I), tst(0), v_z, h(ks(C, I, v_z))), 
+            ks(C, M, getHashValue(v_ks))
+        ), 
+        generate(
+            mac(
+                generate-vsrecord(good(m, n), Credit, tst(0), getId(M)),
+                ks(C, I, v_z)
+            ) 
+        ) 
+    )) .
+    
+    var v_prequest : PRequest . 
+    rl [step2-step3] : (C, PG, M, I, A) message(C, PG, v_prequest)  => (C, PG, M, I, A) message(PG, M, v_prequest) .
+
+
+    var v_k : Nat .
+
+    rl [step3-step4] : (C, PG, M, I, A) message(PG, M, v_prequest) k(v_k) v_tid => (C, PG, M, I, A) message(M, PG, 
+    generate-vcmessage(
+        mac(
+            vcrecord(
+                vcrequest(getVS(v_prequest), getptst(v_prequest), h(getOI(v_prequest)), getTID(v_tid), getPrice(v_prequest), getNID(v_prequest), getId(I)), 
+                getId(M), 
+                getMacKs(getVS(v_prequest)),
+                h(
+                    ks(C, I, getMacKs(getVS(v_prequest)))
+                )
+            ), 
+            ks(M, PG, v_k)
+        )
+    )) .
+
+
+    var v_vcmsg : VCMessage .
+
+    sort DecrptMsg1 .
+    op dcptmsg1 : Nat Nat VSRequest Nat HSecret Nat Nat HSecret -> DecrptMsg1 .
+
+    var temp_a : Nat .
+    var temp_b : Nat .
+    var temp_c : VSRequest .
+    var temp_d : Nat .
+    var temp_e : HSecret .
+    var temp_f : Nat .
+    var temp_g : Nat .
+    var temp_h : HSecret .
+    op getDm1HOI : DecrptMsg1 -> HSecret . 
+    op getDm1HKS : DecrptMsg1 -> HSecret . 
+    eq getDm1HOI(dcptmsg1(temp_a, temp_b, temp_c, temp_d, temp_e, temp_f, temp_g, temp_h)) = temp_e .
+    eq getDm1HKS(dcptmsg1(temp_a, temp_b, temp_c, temp_d, temp_e, temp_f, temp_g, temp_h)) = temp_h .
+
+
+    sort DecrptMsg2 .
+    op dcptmsg2 : Nat Nat -> DecrptMsg2 .
+
+    sort DecrptMsg3 .
+    op dcptmsg3 : VSResponse Stt HSecret -> DecrptMsg3 .
+
+    var temp_i : VSResponse .
+    var temp_j : Stt .
+    var temp_k : HSecret .
+
+    op getDm3VSRes : DecrptMsg3 -> VSResponse .
+    op getDm3Stt : DecrptMsg3 -> Stt .
+    op getDm3HSecret : DecrptMsg3 -> HSecret .
+    eq getDm3VSRes(dcptmsg3(temp_i, temp_j, temp_k)) = temp_i .
+    eq getDm3Stt(dcptmsg3(temp_i, temp_j, temp_k)) = temp_j .
+    eq getDm3HSecret(dcptmsg3(temp_i, temp_j, temp_k)) = temp_k .
+
+
+    subsort DecrptMsg1 DecrptMsg2 DecrptMsg3 < Content .
+
+    subsort Stt < State .
+    var v_dcptmsg1 : DecrptMsg1 .
+    var v_dcptmsg2 : DecrptMsg2 .
+    var v_stt : Stt .
+
+    crl [step4-step5AB] : (C, PG, M, I, A) message(M, PG, v_vcmsg) => (C, PG, M, I, A)
+    message(PG, I, dcptmsg1(
+            getNIDc(v_vcmsg),
+            getMerchantID(v_vcmsg),
+            getVSRequest(v_vcmsg),
+            getTID(v_vcmsg),
+            getHOI(v_vcmsg),
+            getZ(v_vcmsg),
+            getPrice(v_vcmsg),
+            getHKS(v_vcmsg)
+        )
+    ) message(PG, A, dcptmsg2(
+            getPrice(v_vcmsg),
+            getMerchantID(v_vcmsg)
+        )
+    ) Approved if gettstnum(getTST(getVCRequest(v_vcmsg))) == gettstnum(tst(0)) .
+
+    crl [step4-step5AB2] : (C, PG, M, I, A) message(M, PG, v_vcmsg) => fail 
+    if gettstnum(getTST(getVCRequest(v_vcmsg))) =/= gettstnum(tst(0)) .
+    --- k + 1 = 0 , z = 0
+    
+    crl [step5AB-5C] : (C, PG, M, I, A) message(PG, I, v_dcptmsg1) message(PG, A, v_dcptmsg2) v_stt =>
+    (C, PG, M, I, A) 
+    message(I, PG, dcptmsg3(
+            vsresponse(v_stt, getDm1HOI(v_dcptmsg1), h(ks(M, PG, 1)), ks(C, I, 1) ),
+            v_stt,
+            h(v_stt, getDm1HOI(v_dcptmsg1), getDm1HKS(v_dcptmsg1) )
+        )
+    ) if v_stt == Approved .
+
+
+    var v_dcptmsg3 : DecrptMsg3 .
+
+    --- k + 1 = 0
+    rl [step5C-step6] : (C, PG, M, I, A) message(I, PG, v_dcptmsg3) => (C, PG, M, I, A)
+    message(PG, M,
+        vcresponse(
+            getDm3Stt(v_dcptmsg3),
+            getDm3HSecret(v_dcptmsg3),
+            ks(M, PG, 0)
+        )
+    ) .
+
+    var v_vcresponse : VCResponse .
+    var num : Nat .
+  
+    op getresoi : VCResponse -> HSecret .
+    op gethsoi : HSecret -> Nat .
+    eq getresoi(vcresponse(v_stt, temp_k, v_ks)) = temp_k .
+    eq gethsoi(h(v_stt, h(num), h(v_ks))) = num .
+
+    sort PResponse .
+    subsort PResponse < Content .
+    op presponse : -> PResponse .
+    var v_initoi : INITOI .
+
+
+    crl [step6-7] : (C, PG, M, I, A) message(PG, M, v_vcresponse) v_initoi => (C, PG, M, I, A) message(PG, C, presponse) 
+    if gethsoi(getresoi(v_vcresponse)) == getinitoi(v_initoi) .
+
+ 
+    crl [step6-7] : (C, PG, M, I, A) message(PG, M, v_vcresponse) v_initoi => fail
+    if gethsoi(getresoi(v_vcresponse)) =/= getinitoi(v_initoi) .
+
+    sort SUCCESS .
+    subsort SUCCESS < State .
+    op Success : -> SUCCESS .
+    rl [ok] : (C, PG, M, I, A) message(PG, C, presponse) => Success .
+    
+
+
+    
+endm
+
+
+
